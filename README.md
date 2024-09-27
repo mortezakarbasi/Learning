@@ -1,2 +1,2 @@
 # Python_Learning
-My Python Learning path and storage
+My Python Learning path and code storage
