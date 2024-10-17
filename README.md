@@ -15,5 +15,6 @@
 1. Mosh Hamdani course (almost finished (80 %))
 2. [Jadi faradars course](https://faradars.org/courses/fvgit9609-git-github-gitlab) (finshed)
 3. Fire ship (planned)
-## Algorithm 
-1. Quera (planned)
+## miscellaneous
+1. Algorithm Quera (planned)
+2. Mosh Hamdani (CSS and Html part 1)
