@@ -18,3 +18,8 @@
 ## miscellaneous
 1. Algorithm Quera (planned)
 2. Mosh Hamdani (CSS and Html part 1)
+## Exome sequcning
+1. Preprocessing
+2. Variant calling 
+3. Variant Interperation
+##
