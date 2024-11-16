@@ -19,7 +19,15 @@
 1. Algorithm Quera (planned)
 2. Mosh Hamdani (CSS and Html part 1)
 ## Exome sequcning
-1. Preprocessing
-2. Variant calling 
-3. Variant Interperation
+### Germline Variant Calling
+1. Preprocessing 
+2. Variant calling [UCLA_Variant_calling_vdieo_Day_2](https://qcb.ucla.edu/collaboratory/workshops/w8-variant-discovery-with-gatk/)
+    [VCF_file](https://www.ebi.ac.uk/training/online/courses/human-genetic-variation-introduction/variant-identification-and-analysis/understanding-vcf-format/)
+3. Variant Interperation 
+[Future_learn_course]
+[Geneyx_course]
+
+### Somatic Variant calling
+
+### CNV calling
 ##
