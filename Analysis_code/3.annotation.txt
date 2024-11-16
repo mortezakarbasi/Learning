@@ -1,0 +1,14 @@
+# how to download annovar?
+wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.latest.tar.gz
+# download the genebased databased for hg38
+perl  annotate_variation.pl -downdb -buildver hg38 -webfrom annovar refGeneWithVer humandb/
+perl  annotate_variation.pl -downdb -buildver hg38 -webfrom annovar knownGene humandb/
+perl  annotate_variation.pl -downdb -buildver hg38 -webfrom annovar ensGene humandb/
+# download the regionbased databased for hg19 (these code don't work with hg38) i dont't know why
+perl annotate_variation.pl -build hg19 -downdb phastConsElements46way humandb/
+perl annotate_variation.pl -build hg19 -downdb tfbsConsSites humandb/
+perl annotate_variation.pl -build hg19 -downdb cytoBand humandb/
+perl annotate_variation.pl -build hg19 -downdb wgRna humandb/
+perl annotate_variation.pl -build hg19 -downdb targetScanS humandb/
+perl annotate_variation.pl -build hg19 -downdb genomicSuperDups humandb/
+perl annotate_variation.pl -build hg19 -downdb gwasCatalog humandb/
