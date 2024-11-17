@@ -1,0 +1,5 @@
+# variant calling with GATK
+
+# SNP and indel
+
+# VQSR 
