@@ -1,0 +1,30 @@
+# installing apps
+java
+R
+fastqc
+multiqc
+trimmomatic
+bwa
+samtools
+gatk
+picard
+
+# quality control
+
+# trimming 
+
+# index Reference genome 
+
+# aligning and also Read group
+
+# SAM to bam
+
+# index bam
+
+# markduplicate because of PCR biased
+
+# index and dictionary of reference genome
+
+# BQSR
+
+# check BQSR covariate analysis
