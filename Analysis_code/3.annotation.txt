@@ -1,5 +1,7 @@
 # how to download annovar?
 wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.latest.tar.gz
+# extract annovar
+tar -zxvf annovar.latest.tar.gz
 # download the genebased databased for hg38
 perl  annotate_variation.pl -downdb -buildver hg38 -webfrom annovar refGeneWithVer humandb/
 perl  annotate_variation.pl -downdb -buildver hg38 -webfrom annovar knownGene humandb/
@@ -12,3 +14,8 @@ perl annotate_variation.pl -build hg19 -downdb wgRna humandb/
 perl annotate_variation.pl -build hg19 -downdb targetScanS humandb/
 perl annotate_variation.pl -build hg19 -downdb genomicSuperDups humandb/
 perl annotate_variation.pl -build hg19 -downdb gwasCatalog humandb/
+# download filter based annotation databases avsnp
+perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar avdblist .
+perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar avsnp150 .
+# download filter based annotation databases clinvar
+perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar clinvar_20240917 .          
