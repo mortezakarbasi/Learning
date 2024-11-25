@@ -1,0 +1,4 @@
+perl table_annovar.pl --intronhgvs 50 --xreffile /addres/ \
+--polish --thread 4 --dot2underline --nastring . \
+--vcfinput --otherinfo --remove --buildver \
+--outfile <string> \
