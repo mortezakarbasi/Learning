@@ -18,4 +18,10 @@ perl annotate_variation.pl -build hg19 -downdb gwasCatalog humandb/
 perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar avdblist .
 perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar avsnp150 .
 # download filter based annotation databases clinvar
-perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar clinvar_20240917 .          
+perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar clinvar_20240917 .      
+# download DANN (more than 200 Gb)
+perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar eigen .
+# download CADD  (more than 350 Gb
+perl annotate_variation.pl --buildver hg19 -downdb -webfrom annovar cadd13 .
+# Eigen
+# GERP
