@@ -1,5 +1,6 @@
 # installing apps
 java
+perl -v
 R
 fastqc
 multiqc
@@ -8,7 +9,7 @@ bwa
 samtools
 gatk
 picard
-
+https://www.anaconda.com/download/success
 # quality control
 
 # trimming 
