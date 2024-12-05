@@ -1,0 +1,86 @@
+##############################################################
+# how to use anaconda 12/5/2024 ##############################
+##############################################################
+conda list # find which library are installed in your Anaconda
+conda --version # see donda version
+conda env list # enviroment list
+conda create --name <enviroment_name> # create enviroment in conda
+conda create --name <enviroment_name> python=3.9 # create enviroment with specific 
+conda install jupyterlab # conda install jupyter lab
+conda env remove --name ENV_NAME  # remove conda env
+####################################
+########### app instalation ########
+####################################
+$ conda install ipykernel
+$ conda install notebook
+$ python -m ipykernel install --user --name=example
+##############################
+#################### revision 
+##############################
+conda list --revision # see the revisions
+conda install revision=1 # old on past revision
+conda install --revision <revision-number>
+####################################
+################# share envirioment 
+####################################
+conda env export > pthon39.yml
+conda env create -f <file.yml> -n <New_env_name>
+####################################
+############ rename conda env / clone conda enviroment
+####################################
+# you can't rename coda enviroment
+conda create --name new-environment-name --clone old-environment-name
+
+conda create --name annotation --clone example
+#################################### 
+################# remove the old env
+####################################
+conda env remove --name old-environment-name
+
+```
+
+
+``` conda installation in linux
+###########################################
+##### configure anaconda3 windows mode in wsl
+############################################
+# anaconda installation path
+/mnt/e/ProgramData/anaconda3
+# change ~/.bashrc file 
+nano ~/.bashrc
+# bin files for anaconda3
+export PATH="/mnt/e/ProgramData/anaconda3/Scripts:/mnt/e/ProgramData/anaconda3/Library/bin:$PATH"
+# configure bashrc file
+source ~/.bashrc
+###########################################
+##### how to install anaconda3 in linux/wsl
+############################################
+# anaconda download page
+https://www.anaconda.com/download/success
+# download anaconda3
+wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
+# install anaconda 3
+ bash Anaconda3-2024.10-1-Linux-x86_64.sh
+# install anaconda
+eval "$(/home/umorteza/anaconda3/bin/conda shell.bash hook)"
+
+
+
+```
+
+```
+############ install R ######################
+$ conda install -c r r
+############ install Perl ####################
+$ conda install perl
+############ install gzip ####################
+# When using Windows, it is also highly recommended that you install the gzip-related tools
+$ conda install -c msys2 m2-gzip
+############ install java ####################
+$ conda install -c conda-forge openjdk=17
+$ java --version
+############ install Jupyter Notebook environment ####################
+$ conda install ipykernel
+$ conda install notebook
+$ python -m ipykernel install --user --name=<enviroment name>
+```
