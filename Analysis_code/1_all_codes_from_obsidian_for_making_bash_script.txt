@@ -1,0 +1,360 @@
+# Quality control
+$ fastqc <filename>
+# trimming
+$ java -jar /mnt/d/tools/Trimmomatic-0.39/trimmomatic-0.39.jar PE -phred33 PGERA1070_1.fastq.gz PGERA1070_2.fastq.gz forward_1_paired.fastq.gz forward_1_unpaired.fastq.gz reverse_2_paired.fastq.gz reverse_2_unpaired.fastq.gz HEADCROP:13
+# download human genome
+$ wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz
+
+$ gunzip GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz
+
+# index human genome
+$ bwa index <refrence genome file>
+$ bwa index GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
+Note: If the reference is greater than 2GB, you need to specify a different algorithm when building the BWA index, as follows:
+bwa index -a bwtsw <reference.fasta>
+
+
+# aligning
+$ bwa mem -t   -M -o [output path] <refrence file and indexs> <forward> <reverse>
+$ bwa mem -t 8 -M -o /mnt/d/cases\ file/PGERA1070/03_ALN/PGERA1070_aligned.sam /mnt/d/tools/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna /mnt/d/cases\ file/PGERA1070/02_TRM/forward_1_paired.fastq.gz /mnt/d/cases\ file/PGERA1070/02_TRM/reverse_2_paired.fastq.gz
+
+
+$ bwa mem -t 8 -M <refrence file and indexs> <forward> <reverse> > /mnt/d/aligned.sam
+
+$ bwa mem -R "@RG\tID:sample_id\tSM:sample_name\tLB:library_name\tPL:platform\tPU:platform_unit" reference.fasta reads.fq > aligned.sam
+# SAM TO BAM
+$ samtools view -b sample.sam -o sample.bam
+-b is option for change file to bam 
+-o is output
+$samtools \
+view -b 03_ALN/PGERA1070_aligned.sam -o 04_sam_to_bam/PGERA1070_alinged.bam
+
+## bash how to see bam file
+$ samtools view sample.bam | head -n 5
+
+
+# sort bam file
+samtools sort sample.bam -o sample.sorted.bam
+gatk Sortsam
+
+# create index of bam file
+samtools index sample.sorted.bam
+samtools flagstat PGERA1070_alinged.sorted.bam > PGERA1070_flagstat_alignment_metrics.txt
+
+# Add or replace group
+$ picard AddOrReplaceReadGroups I=aligned.bam O=aligned_with_RG.bam RGID=sample_id RGLB=library_name RGPL=platform RGPU=platform_unit RGSM=sample_name
+
+# mark duplicates
+
+java -jar picard.jar MarkDuplicates \  
+      I=input.bam \  
+      O=marked_duplicates.bam \  
+      M=marked_dup_metrics.txt
+
+
+# dictionary and index for reference genome before variant calling
+$ java -jar /mnt/d/tools/picard.jar CreateSequenceDictionary \
+R=/mnt/d/tools/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+O=/mnt/d/tools/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.dict
+
+$ samtools faidx hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
+
+$ samtools index "/mnt/d/cases file/PGERA1070/05_RG_MD/PGERA1070_marked_duplicates.bam"
+
+# BQSR
+
+$ ./gatk --java-options "-Xmx7g" BaseRecalibrator \
+-I "/mnt/d/cases file/PGERA1070/05_RG_MD/PGERA1070_marked_duplicates.bam" \
+-R "/mnt/d/tools/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna" \
+--known-sites "/mnt/d/tools/dbSNP_146_hg38/dbsnp_146.hg38.vcf" \
+-O "/mnt/d/cases file/PGERA1070/06_BQSR/recal_data.table.txt"
+
+# step 2: Apply the model to adjust the base quality scores 
+./gatk --java-options "-Xmx7g" ApplyBQSR \
+-I "/mnt/d/cases file/PGERA1070/05_RG_MD/PGERA1070_marked_duplicates.bam" \
+-R "/mnt/d/tools/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna" \
+--bqsr-recal-file "/mnt/d/cases file/PGERA1070/06_BQSR/recal_data.table.txt" \
+-O "/mnt/d/cases file/PGERA1070/06_BQSR/PGERA1070_marked_duplicates_bqsr.bam"
+
+
+``` bash first build model based on the second bqsr
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar BaseRecalibrator \
+-I "/mnt/e/cases file/PGERA1070/06_BQSR/PGERA1070_marked_duplicates_bqsr.bam" \
+-R /mnt/e/tools/databases/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+--known-sites /mnt/e/tools/databases/dbSNP_146_hg38/dbsnp_146.hg38.vcf \
+-O "/mnt/e/cases file/PGERA1070/06_BQSR/recal_data_after_bqsr.table.txt"
+
+```
+
+``` bash 
+# compare before and after output from step1
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar AnalyzeCovariates \
+-before "/mnt/e/cases file/PGERA1070/06_BQSR/recal_data.table.txt" \
+-after "/mnt/e/cases file/PGERA1070/06_BQSR/recal_data_after_bqsr.table.txt" \
+-plots "/mnt/e/cases file/PGERA1070/07_QC/bqsr_plots.pdf" \
+-csv "/mnt/e/cases file/PGERA1070/07_QC/bqsr_plots.csv"
+```
+
+``` bash
+gatk HaplotypeCaller \
+-R /mnt/d/tools/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+-I /mnt/d/cases\ file/PGERA1070/06_BQSR/PGERA1070_marked_duplicates_bqsr.bam \
+-O /mnt/d/cases\ file/PGERA1070/08_variant_calling/PGERA1070_raw_variants.vcf \
+--native-pair-hmm-threads 12
+```
+step 1 : first make 3 files
+1. SNP
+2. INDEL
+3. MIX
+step 2 : extract SNPs, INDELs and MIX with GATK
+extract SNP
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar SelectVariants \
+-V /mnt/e/cases\ file/PGERA1070/08_variant_calling/PGERA1070_raw_variants.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_hard_filtering/SNP/SNPs.vcf \
+-select-type SNP
+```
+extract INDELs
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar SelectVariants \
+-V /mnt/e/cases\ file/PGERA1070/08_variant_calling/PGERA1070_raw_variants.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_hard_filtering/02_INDEL/INDELs.vcf \
+-select-type INDEL
+```
+extract MIX
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar SelectVariants \
+-V /mnt/e/cases\ file/PGERA1070/08_variant_calling/PGERA1070_raw_variants.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_hard_filtering/03_MIX/MIXED.vcf \
+-select-type MIXED
+```
+step 3 : extract criteria for hard filtering
+3.1.1 extract for SNP file
+``` bash
+# 1st delete header
+grep -v "^#" SNPs.vcf > B_SNPs_WOH.vcf
+# 2nd split column 8 (format)
+cut -f 8 B_SNPs_WOH.vcf > C_field8_SNPS.vcf
+# 3rd split each criteria with Regex
+## DP
+grep "DP=" C_field8_SNPS.vcf | sed 's/.*DP=\([0-9]*\).*/\1/' > 01_DP.txt
+## FS
+grep "FS=" C_field8_SNPS.vcf | sed 's/.*FS=\([0-9.-]*\).*/\1/' > 02_FS.txt
+## MQ
+grep "MQ=" C_field8_SNPS.vcf | sed 's/.*MQ=\([0-9.-]*\).*/\1/' > 03_MQ.txt
+## MQRANKSUM
+grep "MQRankSum=" C_field8_SNPS.vcf | sed 's/.*MQRankSum=\([0-9.-]*\).*/\1/' > 04_MQ
+RankSum.txt
+## QD
+grep "QD=" C_field8_SNPS.vcf | sed 's/.*QD=\([0-9.-]*\).*/\1/' > 05_QD.txt
+## SOR
+grep "SOR=" C_field8_SNPS.vcf | sed 's/.*SOR=\([0-9.-]*\).*/\1/' > 06_SOR.txt
+## ReadPosRankSum
+grep "ReadPosRankSum=" C_field8_SNPS.vcf | sed 's/.*ReadPosRankSum=\([0-9.-]*\).*/\1
+/' > 07_ReadPosRankSum.txt
+```
+3.1.2 extract for INDEL file
+``` bash
+# 1st delete header
+grep -v "^#" /mnt/e/cases\ file/PGERA1070/09_hard_filtering/02_INDEL/INDELs.vcf > /mnt/e/cases\ file/PGERA1070/09_hard_filtering/02_INDEL/INDELs_WOH.vcf
+# 2nd split column 8 (format)
+cut -f 8 /mnt/e/cases\ file/PGERA1070/09_hard_filtering/02_INDEL/INDELs_WOH.vcf > /mnt/e/cases\ file/PGERA1070/09_hard_filtering/02_INDEL/field_8_INDELS.vcf
+# 3rd split each criteria with Regex
+## DP
+grep "DP=" field_8_INDELS.vcf | sed 's/.*DP=\([0-9]*\).*/\1/' > 01_DP.txt
+## FS
+grep "FS=" field_8_INDELS.vcf | sed 's/.*FS=\([0-9.-]*\).*/\1/' > 02_FS.txt
+## MQ
+grep "MQ=" field_8_INDELS.vcf | sed 's/.*MQ=\([0-9.-]*\).*/\1/' > 03_MQ.txt
+## MQRANKSUM
+grep "MQRankSum=" field_8_INDELS.vcf | sed 's/.*MQRankSum=\([0-9.-]*\).*/\1/' > 04_MQRankSum.txt
+## QD
+grep "QD=" field_8_INDELS.vcf | sed 's/.*QD=\([0-9.-]*\).*/\1/' > 05_QD.txt
+## SOR
+grep "SOR=" field_8_INDELS.vcf | sed 's/.*SOR=\([0-9.-]*\).*/\1/' > 06_SOR.txt
+## ReadPosRankSum
+grep "ReadPosRankSum=" field_8_INDELS.vcf | sed 's/.*ReadPosRankSum=\([0-9.-]*\).*/\1/' > 07_ReadPosRankSum.txt
+```
+3.1.3 extract for MIX file 
+because they have a few entries, i prefer don't filter them
+``` bash
+# 1st delete header
+
+# 2nd split column 8 (format)
+
+# 3rd split each criteria with Regex
+
+## DP
+
+## FS
+
+## MQ
+
+## MQRANKSUM
+
+## QD
+
+## SOR
+
+## ReadPosRankSum
+
+```
+3.2  drawing plots in R studio
+``` R
+# running packages
+getwd()
+library(ggplot2)
+library(gridExtra)
+
+## SNPs
+
+# Load data
+SNPs_DP = read.table(file.choose())
+SNPs_FS = read.table(file.choose())
+SNPs_MQ = read.table(file.choose())
+SNPs_MQRankSum = read.table(file.choose())
+SNPs_QD = read.table(file.choose())
+SNPs_SOR = read.table(file.choose())
+SNPs_ReadPosRankSum = read.table(file.choose())
+
+# Create individual plots
+S_DP_graph = ggplot(SNPs_DP, aes(x=V1)) + geom_density() + xlab("SNPs_DP")
+S_FS_graph = ggplot(SNPs_FS, aes(x=V1)) + geom_density() + xlab("SNPs_FS")
+S_MQ_graph = ggplot(SNPs_MQ, aes(x=V1)) + geom_density() + xlab("SNPs_MQ")
+S_MQRankSum_graph = ggplot(SNPs_MQRankSum, aes(x=V1)) + geom_density() + xlab("SNPs_MQRankSum")
+S_QD_graph = ggplot(SNPs_QD, aes(x=V1)) + geom_density() + xlab("SNPs_QD")
+S_SOR_graph = ggplot(SNPs_SOR, aes(x=V1)) + geom_density() + xlab("SNPs_SOR")
+S_ReadPosRankSum_graph = ggplot(SNPs_ReadPosRankSum, aes(x=V1)) + geom_density() + xlab("SNPs_ReadPosRankSum")
+
+## INDELs
+
+# Load data for INDELs
+INDELs_DP = read.table(file.choose())
+INDELs_FS = read.table(file.choose())
+INDELs_MQ = read.table(file.choose())
+INDELs_MQRankSum = read.table(file.choose())
+INDELs_QD = read.table(file.choose())
+INDELs_SOR = read.table(file.choose())
+INDELs_ReadPosRankSum = read.table(file.choose())
+
+# Create individual density plots
+INDELs_DP_graph = ggplot(INDELs_DP, aes(x=V1)) + geom_density() + xlab("INDELs_DP")
+INDELs_FS_graph = ggplot(INDELs_FS, aes(x=V1)) + geom_density() + xlab("INDELs_FS")
+INDELs_MQ_graph = ggplot(INDELs_MQ, aes(x=V1)) + geom_density() + xlab("INDELs_MQ")
+INDELs_MQRankSum_graph = ggplot(INDELs_MQRankSum, aes(x=V1)) + geom_density() + xlab("INDELs_MQRankSum")
+INDELs_QD_graph = ggplot(INDELs_QD, aes(x=V1)) + geom_density() + xlab("INDELs_QD")
+INDELs_SOR_graph = ggplot(INDELs_SOR, aes(x=V1)) + geom_density() + xlab("INDELs_SOR")
+INDELs_ReadPosRankSum_graph = ggplot(INDELs_ReadPosRankSum, aes(x=V1)) + geom_density() + xlab("ReadPosRankSum")
+
+
+# Open a PDF device with A4 size
+pdf("SNPs_INDELs_graphs_A4.pdf", width=8.27, height=11.69)
+
+# Arrange and print plots to PDF
+grid.arrange(INDELs_DP_graph, INDELs_FS_graph, INDELs_MQ_graph, 
+             INDELs_MQRankSum_graph, INDELs_QD_graph, 
+             INDELs_SOR_graph, INDELs_ReadPosRankSum_graph, nrow=4)
+# Arrange and print plots to PDF
+grid.arrange(S_DP_graph, S_FS_graph, S_MQ_graph, 
+             S_MQRankSum_graph, S_QD_graph, S_SOR_graph, 
+             S_ReadPosRankSum_graph, nrow=4)
+
+# Close the PDF device
+dev.off()
+
+step 4 : filter with GATK Variant Filtration
+``` bash
+# filter for SNPs based on gatk thresholds
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar VariantFiltration -V "/mnt/e/cases file/PGERA1070/09_hard_filtering/01_SNP/A_SNPs.vcf" -O "/mnt/e/cases file/PGERA1070/09_hard_filtering/01_SNP/D_filtered_SNPs.vcf" -filter "QD < 2.0" --filter-name "QD2" -filter "QUAL < 30.0" --filter-name "QUAL30" -filter "SOR > 3.0" --filter-name "SOR3" -filter "FS > 60.0" --filter-name "FS60" -filter "MQ < 40.0" --filter-name "MQ40" -filter "MQRankSum < -12.5" --filter-name "MQRankSum-12.5" -filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
+# filter for INDELs based on gatk thresholds
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar VariantFiltration -V A_INDELs.vcf
+ \
+-O D_INDELS_filetred.vcf \
+-filter "QD < 2.0" --filter-name "QD2" \
+-filter "QUAL < 30.0" --filter-name "QUAL30" \
+-filter "FS > 200.0" --filter-name "FS200" \
+-filter "ReadPosRankSum < -20.0" --filter-name "ReadPosRankSum-20" \
+```
+step 5: Merge VCFs with GATK merge
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar MergeVcfs \
+-I /mnt/e/cases\ file/PGERA1070/09_hard_filtering/01_SNP/D_filtered_SNPs.vcf \
+-I /mnt/e/cases\ file/PGERA1070/09_hard_filtering/02_INDEL/D_INDELS_filetred.vcf \
+-I /mnt/e/cases\ file/PGERA1070/09_hard_filtering/03_MIX/MIXED.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_hard_filtering/05_Mege_VCFs/Merged_Finshed.vcf
+```
+
+
+##### step 1 VariantRecalibrator for SNP
+don't use DP for VQSR
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar VariantRecalibrator \
+-V /mnt/e/cases\ file/PGERA1070/08_variant_calling/PGERA1070_raw_variants.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_SNP_recal.vcf \
+-R /mnt/e/tools/databases/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+--resource:hapmap,known=false,training=true,truth=true,prior=15.0 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_hapmap_3.3.hg38.vcf \
+--resource:omni,known=false,training=true,truth=false,prior=12.0 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_1000G_omni2.5.hg38.vcf \
+--resource:1000G,known=false,training=true,truth=false,prior=10.0 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_1000G_phase1.snps.high_confidence.hg38.vcf \
+--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_Homo_sapiens_assembly38.dbsnp138.vcf \
+--tranches-file /mnt/e/cases\ file/PGERA1070/09_VQSR/Tranches_SNP.txt \
+-tranche 100.0 -tranche 99.9 -tranche 99.0 -tranche 98.0 -tranche 97.0 -tranche 95.0 -tranche 93.0 -tranche 90.0 \
+-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR \
+-mode SNP \
+--max-gaussians 4 \
+--rscript-file /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_rscript_plots.R
+
+```
+
+##### step 2 Apply VQSR for SNP
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar ApplyVQSR \
+--recal-file /mnt/e/cases\ file/PGERA1070/09_VQSR/01_SNP/PGERA1070_SNP_recal.vcf \
+-V /mnt/e/cases\ file/PGERA1070/08_variant_calling/PGERA1070_raw_variants.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_SNP_VQSR_Done.vcf \
+-R /mnt/e/tools/databases/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+--tranches-file /mnt/e/cases\ file/PGERA1070/09_VQSR/01_SNP/Tranches_SNP.txt \
+--truth-sensitivity-filter-level 99.9 \
+-mode SNP 
+```
+
+##### step 3 VariantRecalibrator for INDELs
+don't use DP for VQSR
+DP can be used for whole genome not for exome and panels.
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar VariantRecalibrator \
+-V /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_SNP_VQSR_Done.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_INDEL_recal.vcf \
+-R /mnt/e/tools/databases/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+--resource:Mills,known=false,training=true,truth=true,prior=12.0 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_Mills_and_1000G_gold_standard.indels.hg38.vcf \
+--resource:axiomPoly,known=false,training=true,truth=false,prior=10 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf \
+--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_Homo_sapiens_assembly38.dbsnp138.vcf \
+--tranches-file /mnt/e/cases\ file/PGERA1070/09_VQSR/Tranches_INDELs.txt \
+-tranche 100.0 -tranche 99.9 -tranche 99.0 -tranche 98.0 -tranche 97.0 -tranche 95.0 -tranche 93.0 -tranche 90.0 \
+-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR \
+-mode INDEL \
+--max-gaussians 4 \
+--rscript-file /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_INDEL_rscript_plots.R
+
+
+```
+ 
+ tip : some time maybe you've got the error about header problem. the error reported in [biostar](https://www.biostars.org/p/483521/) and they use bcftools.
+ but i change vcf databases manually to .vcf.gz and after that use gzip -d \<database  path>  and finally i use gatk
+ indexfeature file to make index for these files. 
+
+```
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar IndexFeatureFile     -I /mnt/e/tools/databases/VariantKnownDatabases_hg38_2/resources_broad_hg38_v0_Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf
+i've also done it for others.
+```
+
+##### step 4 Apply VQSR for INDELs
+``` bash
+java -jar /mnt/e/tools/gatk-4.4.0.0/gatk-package-4.4.0.0-local.jar ApplyVQSR \
+--recal-file /mnt/e/cases\ file/PGERA1070/09_VQSR/02_INDEL/PGERA1070_INDEL_recal.vcf \
+-V /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_SNP_VQSR_Done.vcf \
+-O /mnt/e/cases\ file/PGERA1070/09_VQSR/PGERA1070_SNP__INDEL_VQSR_Done.vcf \
+-R /mnt/e/tools/databases/hg38_variant_calling_henli/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+--tranches-file /mnt/e/cases\ file/PGERA1070/09_VQSR/01_SNP/Tranches_SNP.txt \
+--truth-sensitivity-filter-level 99.9 \
+-mode INDEL 
+```

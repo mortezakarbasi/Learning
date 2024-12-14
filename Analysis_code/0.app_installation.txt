@@ -1,0 +1,11 @@
+# install anaconda
+
+# install java 
+$ conda install -c conda-forge openjdk=17
+# install R for gatk (i used gatk 4.4) (for vqsr i got the error and following code solve that.
+$ conda install -c r r-base=3.6.2 r-data.table=1.12.8 r-dplyr=0.8.5 r-getopt=1.20.3 r-ggplot2=3.3.0 r-gplots=3.0.3 r-gsalib=2.1 r-optparse=1.6.4 r-backports=1.1.10
+## install some packges for BQSR in R (error related gplots)
+$ R
+> install.packages("KernSmooth", repos="http://cran.r-project.org")
+
+#
